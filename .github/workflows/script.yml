@@ -26,20 +26,19 @@ jobs:
           python -m fetch  # Korrigierter Befehl
 
           # Vergleichen mit vorherigem Wert aus freeplaces.txt
-          # Wenn freeplaces.txt existiert, lese den Wert, ansonsten setze PREVIOUS_STALLS auf ""
-          if [ -f freeplaces.txt ]; then
-            PREVIOUS_STALLS=$(cat freeplaces.txt)
+          if [ -f "${{ github.workspace }}/freeplaces.txt" ]; then
+            PREVIOUS_STALLS=$(cat "${{ github.workspace }}/freeplaces.txt")
           else
             PREVIOUS_STALLS=""
           fi
 
-          CURRENT_STALLS=$(cat freeplaces.txt)
+          CURRENT_STALLS=$(cat "${{ github.workspace }}/freeplaces.txt")
 
-          # Kopiere CURRENT_STALLS nach PREVIOUS_STALLS, bevor der Vergleich durchgeführt wird
-          PREVIOUS_STALLS=$CURRENT_STALLS
-
-          # Führe den Vergleich nur durch, wenn CURRENT_STALLS ungleich PREVIOUS_STALLS ist
-          if [ "$CURRENT_STALLS"!= "$PREVIOUS_STALLS" ]; then
+          # Prüfe, ob PREVIOUS_STALLS leer ist
+          if [ -z "$PREVIOUS_STALLS" ]; then
+            echo "::set-output name=changed::true"
+          # Führe den Vergleich nur durch, wenn PREVIOUS_STALLS nicht leer ist
+          elif [ "$CURRENT_STALLS"!= "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
             echo "::set-output name=free_stalls::$CURRENT_STALLS"
           fi
