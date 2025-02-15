@@ -10,7 +10,7 @@ headers = {
 
 def get_free_stalls(url):
     try:
-        response = requests.get(url)  # nur einmal aufrufen
+        response = requests.get(url, headers=headers)  # nur einmal aufrufen
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
 
