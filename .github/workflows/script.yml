@@ -66,13 +66,16 @@ jobs:
           CHANGED="${{ steps.compare.outputs.changed }}"
           
           if [ "$CHANGED" = "true" ]; then
-            MESSAGE="@299619374602518529 🚨 Die Anzahl der freien Stallplätze hat sich geändert! 🚨\nVorher: **$OLD**\nJetzt: **$NEW**"
+            MESSAGE="<@299619374602518529> 🚨 Die Anzahl der freien Stallplätze hat sich geändert! 🚨\nVorher: **$OLD**\nJetzt: **$NEW**"
           else
             MESSAGE="ℹ️ Keine Änderung der freien Stallplätze.\nAktuell sind **$NEW** Plätze frei."
           fi
           
           echo "Sending Discord notification: $MESSAGE"
-          curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$MESSAGE\"}" "${DISCORD_WEBHOOK_URL}"
+          curl -H "Content-Type: application/json" -X POST -d "{
+            \"content\": \"$MESSAGE\",
+            \"allowed_mentions\": { \"users\": [\"299619374602518529\"] }
+          }" "${DISCORD_WEBHOOK_URL}"
       
       - name: Update old_places.txt
         run: |
