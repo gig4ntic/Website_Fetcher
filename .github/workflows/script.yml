@@ -38,15 +38,35 @@ jobs:
           if [ -z "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
           # Führe den Vergleich nur durch, wenn PREVIOUS_STALLS nicht leer ist
-          # Korrigierte Bedingung mit Leerzeichen um den Operator
-          elif [ -n "$CURRENT_STALLS" ] && [ -n "$PREVIOUS_STALLS" ] && ! [ "$CURRENT_STALLS" = "$PREVIOUS_STALLS" ]; then
+          elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
-            echo "::set-output name=free_stalls::$CURRENT_STALLS"
           fi
+
+          # Speichere die aktualisierte freeplaces.txt als Artefakt
+          echo "::set-output name=free_stalls::$CURRENT_STALLS"
+          mkdir -p./artifacts
+          cp freeplaces.txt./artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: stallplaetze-artifact
+          path:./artifacts/
 
       - name: Discord Notification
         if: steps.check_stalls.outputs.changed == 'true'
+        needs: check_stalls # Benötigt den vorherigen Schritt
+        uses: actions/download-artifact@v3
+        with:
+          name: stallplaetze-artifact
+          path:./artifacts/
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          # Stelle die freeplaces.txt aus dem Artefakt wieder her
+          cp./artifacts/freeplaces.txt.
+
+          # Lese den aktuellen Wert aus der wiederhergestellten Datei
+          CURRENT_STALLS=$(cat freeplaces.txt)
+
           curl -H "Content-Type: application/json" -X POST -d '{"content": "Die Anzahl der freien Stallplätze hat sich geändert! Aktuell sind '$CURRENT_STALLS' Plätze frei."}' "${{ secrets.DISCORD_WEBHOOK_URL }}"
