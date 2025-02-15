@@ -39,7 +39,7 @@ jobs:
             echo "::set-output name=changed::true"
           # Führe den Vergleich nur durch, wenn PREVIOUS_STALLS nicht leer ist
           # Korrigierte Bedingung mit Leerzeichen um den Operator
-          elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
+          elif [ "$CURRENT_STALLS"!= "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
             echo "::set-output name=free_stalls::$CURRENT_STALLS"
           fi
