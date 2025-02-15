@@ -66,7 +66,7 @@ jobs:
           CHANGED="${{ steps.compare.outputs.changed }}"
           
           if [ "$CHANGED" = "true" ]; then
-            MESSAGE="@gig4ntic 🚨 Die Anzahl der freien Stallplätze hat sich geändert! 🚨\nVorher: **$OLD**\nJetzt: **$NEW**"
+            MESSAGE="@299619374602518529 🚨 Die Anzahl der freien Stallplätze hat sich geändert! 🚨\nVorher: **$OLD**\nJetzt: **$NEW**"
           else
             MESSAGE="ℹ️ Keine Änderung der freien Stallplätze.\nAktuell sind **$NEW** Plätze frei."
           fi
