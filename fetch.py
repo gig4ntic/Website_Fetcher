@@ -1,8 +1,9 @@
-import requests
-from bs4 import BeautifulSoup
 import os
 import subprocess
 import sys
+
+import requests
+from bs4 import BeautifulSoup
 
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
@@ -14,7 +15,7 @@ install("beautifulsoup4")
 # Define the URL and headers
 url = "https://www.stall-frei.de/stall/baden-wuerttemberg/schwaigern/143025"
 headers = {
-    "User-Agent": "Mozilla/5.0"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
 }
 
 def get_free_stalls(url):
@@ -41,7 +42,6 @@ def get_free_stalls(url):
         return None
 
 if __name__ == "__main__":
-    url = "https://www.stall-frei.de/stall/baden-wuerttemberg/schwaigern/143025"
     free_stalls = get_free_stalls(url)
 
     if free_stalls is not None:

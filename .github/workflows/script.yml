@@ -34,7 +34,7 @@ jobs:
 
           CURRENT_STALLS=$(cat freeplaces.txt)
 
-          if [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
+          if [ "$CURRENT_STALLS"!= "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
             echo "::set-output name=free_stalls::$CURRENT_STALLS"
           fi
