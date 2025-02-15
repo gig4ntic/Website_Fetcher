@@ -3,6 +3,7 @@ name: Check Stallplätze
 on:
   schedule:
     - cron: '*/60 * * * *'
+  workflow_dispatch: # manuell ausführbar
 
 jobs:
   check_stalls:
