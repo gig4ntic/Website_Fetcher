@@ -9,7 +9,8 @@ jobs:
   check_stalls:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -26,14 +27,14 @@ jobs:
         run: |
           python -m fetch  # Korrigierter Befehl
 
-          # Vergleichen mit vorherigem Wert aus freeplaces.txt
-          if [ -f "${{ github.workspace }}/freeplaces.txt" ]; then
-            PREVIOUS_STALLS=$(cat "${{ github.workspace }}/freeplaces.txt")
+          # Lade vorherige Stallplätze aus dem Repository
+          if [ -f freeplaces.txt ]; then
+            PREVIOUS_STALLS=$(cat freeplaces.txt)
           else
             PREVIOUS_STALLS="?"
           fi
 
-          CURRENT_STALLS=$(cat "${{ github.workspace }}/freeplaces.txt")
+          CURRENT_STALLS=$(cat freeplaces.txt)
 
           # Prüfe, ob sich etwas geändert hat
           if [ "$PREVIOUS_STALLS" = "?" ]; then
@@ -51,37 +52,30 @@ jobs:
           echo "::set-output name=previous_stalls::$PREVIOUS_STALLS"
           echo "::set-output name=free_stalls::$CURRENT_STALLS"
 
-          # Speichere die Datei als Artefakt
-          mkdir -p ./artifacts
-          echo "$PREVIOUS_STALLS" > ./artifacts/previousplaces.txt
-          echo "$CURRENT_STALLS" > ./artifacts/freeplaces.txt
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: stallplaetze-artifact
-          path: ./artifacts/
+      - name: Commit and Push Changes
+        if: always()
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add freeplaces.txt
+          git commit -m "Update freeplaces.txt - $CURRENT_STALLS freie Plätze" || echo "Keine Änderungen zum Commit."
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   notify:
     runs-on: ubuntu-latest
     needs: check_stalls
     steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: stallplaetze-artifact
-          path: ./artifacts/
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Discord Notification
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Stelle die freeplaces.txt und previousplaces.txt aus dem Artefakt wieder her
-          cp ./artifacts/freeplaces.txt .
-          cp ./artifacts/previousplaces.txt .
-
-          # Lese alte und neue Anzahl aus den Dateien
-          PREVIOUS_STALLS=$(cat previousplaces.txt)
+          # Lade aktuelle und vorherige Stallplätze aus dem Repository
+          PREVIOUS_STALLS=$(cat freeplaces.txt || echo "?")
           CURRENT_STALLS=$(cat freeplaces.txt)
 
           # Prüfe, ob sich etwas geändert hat
