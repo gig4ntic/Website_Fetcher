@@ -1,0 +1,46 @@
+name: Check Stallplätze
+
+on:
+  schedule:
+    - cron: '*/60 * * * *'
+
+jobs:
+  check_stalls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
+      - name: Run script and check for changes
+        id: check_stalls
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python fetch.py
+
+          # Vergleichen mit vorherigem Wert aus freeplaces.txt
+          if [ -f freeplaces.txt ]; then
+            PREVIOUS_STALLS=$(cat freeplaces.txt)
+          else
+            PREVIOUS_STALLS=""
+          fi
+
+          CURRENT_STALLS=$(cat freeplaces.txt)
+
+          if [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
+            echo "::set-output name=changed::true"
+            echo "::set-output name=free_stalls::$CURRENT_STALLS"
+          fi
+
+      - name: Discord Notification
+        if: steps.check_stalls.outputs.changed == 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" -X POST -d '{"content": "Die Anzahl der freien Stallplätze hat sich geändert! Aktuell sind '$CURRENT_STALLS' Plätze frei."}' "${{ secrets.DISCORD_WEBHOOK_URL }}"
