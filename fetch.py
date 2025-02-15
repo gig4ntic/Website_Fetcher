@@ -8,17 +8,9 @@ headers = {
     "User-Agent": "Mozilla/5.0"
 }
 
-# Make the request
-response = requests.get(url, headers=headers)
-
-# Handle the response
-print(response.text)
-
-response = requests.get(url, headers=headers)
-
 def get_free_stalls(url):
     try:
-        response = requests.get(url)
+        response = requests.get(url)  # nur einmal aufrufen
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
 
