@@ -34,6 +34,9 @@ jobs:
 
           CURRENT_STALLS=$(cat freeplaces.txt)
 
+          # Neu: Kopiere CURRENT_STALLS nach PREVIOUS_STALLS
+          PREVIOUS_STALLS=$CURRENT_STALLS
+
           if [ "$CURRENT_STALLS"!= "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
             echo "::set-output name=free_stalls::$CURRENT_STALLS"
