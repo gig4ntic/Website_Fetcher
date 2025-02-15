@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  check_stalls:
+  check_and_notify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -18,73 +18,72 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
-
-      - name: Run script and check for changes
-        id: check_stalls
+      
+      - name: Fetch new stall count and store in new_places.txt
         run: |
-          # Hole den vorherigen Wert aus dem Repository (HEAD) und trimme Leerzeichen
-          PREVIOUS_STALLS=$(git show HEAD:freeplaces.txt 2>/dev/null | tr -d '[:space:]' || echo "?")
-          
-          # Führe das Python-Skript aus, das freeplaces.txt aktualisiert
-          python -m fetch
-          
-          # Lese den aktuellen Wert aus der aktualisierten Datei und entferne Whitespace
-          CURRENT_STALLS=$(cat freeplaces.txt | tr -d '[:space:]')
-          
-          echo "Previous: '$PREVIOUS_STALLS'"
-          echo "Current: '$CURRENT_STALLS'"
-          
-          # Prüfe, ob sich der Wert geändert hat
-          if [ "$PREVIOUS_STALLS" = "?" ]; then
-            CHANGED="true"
-          elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
-            CHANGED="true"
+          python -m fetch  # Das Python-Skript schreibt standardmäßig freeplaces.txt
+          mv freeplaces.txt new_places.txt
+      
+      - name: Compare new and old stall counts
+        id: compare
+        run: |
+          # Lade alten Wert aus old_places.txt, falls vorhanden; ansonsten "?" als Platzhalter
+          if [ -f old_places.txt ]; then
+              OLD=$(cat old_places.txt | tr -d '[:space:]')
           else
-            CHANGED="false"
+              OLD="?"
+          fi
+          # Lese den neuen Wert aus new_places.txt und entferne Whitespace
+          NEW=$(cat new_places.txt | tr -d '[:space:]')
+          
+          echo "Old value: '$OLD'"
+          echo "New value: '$NEW'"
+          
+          # Bestimme, ob sich der Wert geändert hat
+          if [ "$OLD" = "?" ]; then
+              CHANGED="true"
+          elif [ "$NEW" != "$OLD" ]; then
+              CHANGED="true"
+          else
+              CHANGED="false"
           fi
           
           echo "changed=$CHANGED" >> $GITHUB_OUTPUT
-          echo "previous_stalls=$PREVIOUS_STALLS" >> $GITHUB_OUTPUT
-          echo "free_stalls=$CURRENT_STALLS" >> $GITHUB_OUTPUT
-
-      - name: Commit and Push Changes
-        if: steps.check_stalls.outputs.changed == 'true'
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add freeplaces.txt
-          git commit -m "Update freeplaces.txt - ${{ steps.check_stalls.outputs.free_stalls }} freie Plätze" || echo "Keine Änderungen zum Commit."
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  notify:
-    runs-on: ubuntu-latest
-    needs: check_stalls
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Discord Notification
+          echo "old_value=$OLD" >> $GITHUB_OUTPUT
+          echo "new_value=$NEW" >> $GITHUB_OUTPUT
+      
+      - name: Send Discord Notification
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          PREVIOUS_STALLS="${{ needs.check_stalls.outputs.previous_stalls }}"
-          CURRENT_STALLS="${{ needs.check_stalls.outputs.free_stalls }}"
-          CHANGED="${{ needs.check_stalls.outputs.changed }}"
+          OLD="${{ steps.compare.outputs.old_value }}"
+          NEW="${{ steps.compare.outputs.new_value }}"
+          CHANGED="${{ steps.compare.outputs.changed }}"
           
           if [ "$CHANGED" = "true" ]; then
-            MESSAGE="@gig4ntic 🚨 Die Anzahl der freien Stallplätze hat sich geändert! 🚨\nVorher: **$PREVIOUS_STALLS**\nJetzt: **$CURRENT_STALLS**"
+            MESSAGE="@gig4ntic 🚨 Die Anzahl der freien Stallplätze hat sich geändert! 🚨\nVorher: **$OLD**\nJetzt: **$NEW**"
           else
-            MESSAGE="ℹ️ Keine Änderung der freien Stallplätze.\nAktuell sind weiterhin **$CURRENT_STALLS** Plätze frei."
+            MESSAGE="ℹ️ Keine Änderung der freien Stallplätze.\nAktuell sind **$NEW** Plätze frei."
           fi
           
-          echo "Sende Nachricht: $MESSAGE"
+          echo "Sending Discord notification: $MESSAGE"
           curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$MESSAGE\"}" "${DISCORD_WEBHOOK_URL}"
+      
+      - name: Update old_places.txt
+        run: |
+          cp new_places.txt old_places.txt
+      
+      - name: Commit and push updated old_places.txt
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add old_places.txt
+          git commit -m "Update old_places.txt with new stall count: $(cat old_places.txt) freie Plätze" || echo "No changes to commit"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
