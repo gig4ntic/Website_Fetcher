@@ -38,20 +38,20 @@ jobs:
           if [ -z "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
           # Führe den Vergleich nur durch, wenn PREVIOUS_STALLS nicht leer ist
-          elif [ "$CURRENT_STALLS"!= "$PREVIOUS_STALLS" ]; then
+          elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
           fi
 
           # Speichere die aktualisierte freeplaces.txt als Artefakt
           echo "::set-output name=free_stalls::$CURRENT_STALLS"
-          mkdir -p./artifacts
-          cp freeplaces.txt./artifacts/
+          mkdir -p ./artifacts
+          cp freeplaces.txt ./artifacts/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: stallplaetze-artifact
-          path:./artifacts/
+          path: ./artifacts/
 
       - name: Discord Notification
         if: steps.check_stalls.outputs.changed == 'true'
@@ -59,7 +59,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: stallplaetze-artifact
-          path:./artifacts/
+          path: ./artifacts/
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
