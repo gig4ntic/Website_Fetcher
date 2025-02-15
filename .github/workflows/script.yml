@@ -3,7 +3,7 @@ name: Check Stallplätze
 on:
   schedule:
     - cron: '*/60 * * * *'
-  workflow_dispatch: # Manuell ausführbar
+  workflow_dispatch:
 
 jobs:
   check_stalls:
@@ -25,40 +25,38 @@ jobs:
       - name: Run script and check for changes
         id: check_stalls
         run: |
-          python -m fetch  # Korrigierter Befehl
-
-          # Lade vorherige Stallplätze aus dem Repository
-          if [ -f freeplaces.txt ]; then
-            PREVIOUS_STALLS=$(cat freeplaces.txt)
-          else
-            PREVIOUS_STALLS="?"
-          fi
-
+          # Hole den vorherigen Wert aus dem Repository (HEAD) – falls freeplaces.txt noch nicht existiert, gib "?" zurück.
+          PREVIOUS_STALLS=$(git show HEAD:freeplaces.txt 2>/dev/null || echo "?")
+          
+          # Führe das Python-Skript aus, das freeplaces.txt aktualisiert
+          python -m fetch
+          
+          # Lese den aktuellen Wert aus der aktualisierten Datei
           CURRENT_STALLS=$(cat freeplaces.txt)
-
-          # Prüfe, ob sich etwas geändert hat
+          
+          echo "Previous: $PREVIOUS_STALLS"
+          echo "Current: $CURRENT_STALLS"
+          
+          # Prüfe, ob sich der Wert geändert hat
           if [ "$PREVIOUS_STALLS" = "?" ]; then
-            echo "changed=true" >> "$GITHUB_ENV"
-            echo "::set-output name=changed::true"
+            CHANGED="true"
           elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
-            echo "changed=true" >> "$GITHUB_ENV"
-            echo "::set-output name=changed::true"
+            CHANGED="true"
           else
-            echo "changed=false" >> "$GITHUB_ENV"
-            echo "::set-output name=changed::false"
+            CHANGED="false"
           fi
-
-          # Speichere alte und neue Anzahl der freien Plätze als Output
+          
+          echo "::set-output name=changed::$CHANGED"
           echo "::set-output name=previous_stalls::$PREVIOUS_STALLS"
           echo "::set-output name=free_stalls::$CURRENT_STALLS"
 
       - name: Commit and Push Changes
-        if: always()
+        if: steps.check_stalls.outputs.changed == 'true'
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add freeplaces.txt
-          git commit -m "Update freeplaces.txt - $CURRENT_STALLS freie Plätze" || echo "Keine Änderungen zum Commit."
+          git commit -m "Update freeplaces.txt - ${{ steps.check_stalls.outputs.free_stalls }} freie Plätze" || echo "Keine Änderungen zum Commit."
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -74,16 +72,14 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Lade aktuelle und vorherige Stallplätze aus dem Repository
-          PREVIOUS_STALLS=$(cat freeplaces.txt || echo "?")
-          CURRENT_STALLS=$(cat freeplaces.txt)
-
-          # Prüfe, ob sich etwas geändert hat
-          if [ "${{ needs.check_stalls.outputs.changed }}" == "true" ]; then
+          PREVIOUS_STALLS="${{ needs.check_stalls.outputs.previous_stalls }}"
+          CURRENT_STALLS="${{ needs.check_stalls.outputs.free_stalls }}"
+          CHANGED="${{ needs.check_stalls.outputs.changed }}"
+          
+          if [ "$CHANGED" = "true" ]; then
             MESSAGE="@gig4ntic 🚨 Die Anzahl der freien Stallplätze hat sich geändert! 🚨\nVorher: **$PREVIOUS_STALLS**\nJetzt: **$CURRENT_STALLS**"
           else
             MESSAGE="ℹ️ Keine Änderung der freien Stallplätze.\nAktuell sind weiterhin **$CURRENT_STALLS** Plätze frei."
           fi
-
-          # Sende die Nachricht an Discord
-          curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$MESSAGE\"}" "${{ secrets.DISCORD_WEBHOOK_URL }}"
+          
+          curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$MESSAGE\"}" "${DISCORD_WEBHOOK_URL}"
