@@ -23,8 +23,6 @@ jobs:
 
       - name: Run script and check for changes
         id: check_stalls
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           python -m fetch  # Korrigierter Befehl
 
@@ -39,14 +37,17 @@ jobs:
 
           # Prüfe, ob PREVIOUS_STALLS leer ist
           if [ -z "$PREVIOUS_STALLS" ]; then
-            echo "changed=true" >> $GITHUB_ENV
-          # Führe den Vergleich nur durch, wenn PREVIOUS_STALLS nicht leer ist
+            echo "changed=true" >> "$GITHUB_ENV"
+            echo "::set-output name=changed::true"
           elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
-            echo "changed=true" >> $GITHUB_ENV
+            echo "changed=true" >> "$GITHUB_ENV"
+            echo "::set-output name=changed::true"
           fi
 
-          # Speichere die aktualisierte freeplaces.txt als Artefakt
-          echo "free_stalls=$CURRENT_STALLS" >> $GITHUB_ENV
+          # Speichere die Anzahl der freien Stallplätze
+          echo "::set-output name=free_stalls::$CURRENT_STALLS"
+
+          # Speichere die Datei als Artefakt
           mkdir -p ./artifacts
           cp freeplaces.txt ./artifacts/
 
@@ -59,7 +60,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     needs: check_stalls
-    if: env.changed == 'true'
+    if: ${{ needs.check_stalls.outputs.changed == 'true' }}
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v3
@@ -74,7 +75,7 @@ jobs:
           # Stelle die freeplaces.txt aus dem Artefakt wieder her
           cp ./artifacts/freeplaces.txt .
 
-          # Lese den aktuellen Wert aus der wiederhergestellten Datei
+          # Lese den aktuellen Wert aus der Datei
           CURRENT_STALLS=$(cat freeplaces.txt)
 
           curl -H "Content-Type: application/json" -X POST -d '{"content": "Die Anzahl der freien Stallplätze hat sich geändert! Aktuell sind '"$CURRENT_STALLS"' Plätze frei."}' "${{ secrets.DISCORD_WEBHOOK_URL }}"
