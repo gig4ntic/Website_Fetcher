@@ -2,6 +2,13 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# Installiere requests und beautifulsoup4, falls sie noch nicht installiert sind
+install("requests")
+install("beautifulsoup4")
+
 # Define the URL and headers
 url = "https://www.stall-frei.de/stall/baden-wuerttemberg/schwaigern/143025"
 headers = {
