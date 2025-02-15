@@ -38,7 +38,7 @@ jobs:
           if [ -z "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
           # Führe den Vergleich nur durch, wenn PREVIOUS_STALLS nicht leer ist
-          elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
+          elif [ "$CURRENT_STALLS"!= "$PREVIOUS_STALLS" ]; then
             echo "::set-output name=changed::true"
           fi
 
