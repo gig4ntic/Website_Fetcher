@@ -3,7 +3,7 @@ name: Check Stallplätze
 on:
   schedule:
     - cron: '*/60 * * * *'
-  workflow_dispatch: # manuell ausführbar
+  workflow_dispatch: # Manuell ausführbar
 
 jobs:
   check_stalls:
@@ -35,13 +35,16 @@ jobs:
 
           CURRENT_STALLS=$(cat "${{ github.workspace }}/freeplaces.txt")
 
-          # Prüfe, ob PREVIOUS_STALLS leer ist
+          # Prüfe, ob sich etwas geändert hat
           if [ -z "$PREVIOUS_STALLS" ]; then
             echo "changed=true" >> "$GITHUB_ENV"
             echo "::set-output name=changed::true"
           elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
             echo "changed=true" >> "$GITHUB_ENV"
             echo "::set-output name=changed::true"
+          else
+            echo "changed=false" >> "$GITHUB_ENV"
+            echo "::set-output name=changed::false"
           fi
 
           # Speichere die Anzahl der freien Stallplätze
@@ -60,7 +63,6 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     needs: check_stalls
-    if: ${{ needs.check_stalls.outputs.changed == 'true' }}
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -78,4 +80,12 @@ jobs:
           # Lese den aktuellen Wert aus der Datei
           CURRENT_STALLS=$(cat freeplaces.txt)
 
-          curl -H "Content-Type: application/json" -X POST -d '{"content": "Die Anzahl der freien Stallplätze hat sich geändert! Aktuell sind '"$CURRENT_STALLS"' Plätze frei."}' "${{ secrets.DISCORD_WEBHOOK_URL }}"
+          # Prüfe, ob sich etwas geändert hat
+          if [ "${{ needs.check_stalls.outputs.changed }}" == "true" ]; then
+            MESSAGE="@gig4ntic Die Anzahl der freien Stallplätze hat sich geändert! 🚨 Aktuell sind **$CURRENT_STALLS** Plätze frei."
+          else
+            MESSAGE="ℹ️ Die Anzahl der freien Stallplätze hat sich **nicht** geändert. Aktuell sind weiterhin **$CURRENT_STALLS** Plätze frei."
+          fi
+
+          # Sende die Nachricht an Discord
+          curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$MESSAGE\"}" "${{ secrets.DISCORD_WEBHOOK_URL }}"
