@@ -11,6 +11,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -25,17 +27,17 @@ jobs:
       - name: Run script and check for changes
         id: check_stalls
         run: |
-          # Hole den vorherigen Wert aus dem Repository (HEAD) – falls freeplaces.txt noch nicht existiert, gib "?" zurück.
-          PREVIOUS_STALLS=$(git show HEAD:freeplaces.txt 2>/dev/null || echo "?")
+          # Hole den vorherigen Wert aus dem Repository (HEAD) und trimme Leerzeichen
+          PREVIOUS_STALLS=$(git show HEAD:freeplaces.txt 2>/dev/null | tr -d '[:space:]' || echo "?")
           
           # Führe das Python-Skript aus, das freeplaces.txt aktualisiert
           python -m fetch
           
-          # Lese den aktuellen Wert aus der aktualisierten Datei
-          CURRENT_STALLS=$(cat freeplaces.txt)
+          # Lese den aktuellen Wert aus der aktualisierten Datei und entferne Whitespace
+          CURRENT_STALLS=$(cat freeplaces.txt | tr -d '[:space:]')
           
-          echo "Previous: $PREVIOUS_STALLS"
-          echo "Current: $CURRENT_STALLS"
+          echo "Previous: '$PREVIOUS_STALLS'"
+          echo "Current: '$CURRENT_STALLS'"
           
           # Prüfe, ob sich der Wert geändert hat
           if [ "$PREVIOUS_STALLS" = "?" ]; then
@@ -46,9 +48,9 @@ jobs:
             CHANGED="false"
           fi
           
-          echo "::set-output name=changed::$CHANGED"
-          echo "::set-output name=previous_stalls::$PREVIOUS_STALLS"
-          echo "::set-output name=free_stalls::$CURRENT_STALLS"
+          echo "changed=$CHANGED" >> $GITHUB_OUTPUT
+          echo "previous_stalls=$PREVIOUS_STALLS" >> $GITHUB_OUTPUT
+          echo "free_stalls=$CURRENT_STALLS" >> $GITHUB_OUTPUT
 
       - name: Commit and Push Changes
         if: steps.check_stalls.outputs.changed == 'true'
@@ -67,6 +69,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Discord Notification
         env:
@@ -82,4 +86,5 @@ jobs:
             MESSAGE="ℹ️ Keine Änderung der freien Stallplätze.\nAktuell sind weiterhin **$CURRENT_STALLS** Plätze frei."
           fi
           
+          echo "Sende Nachricht: $MESSAGE"
           curl -H "Content-Type: application/json" -X POST -d "{\"content\": \"$MESSAGE\"}" "${DISCORD_WEBHOOK_URL}"
