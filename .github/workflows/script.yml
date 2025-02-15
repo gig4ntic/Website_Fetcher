@@ -10,14 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
+
       - name: Run script and check for changes
         id: check_stalls
         env:
@@ -36,14 +39,14 @@ jobs:
 
           # Prüfe, ob PREVIOUS_STALLS leer ist
           if [ -z "$PREVIOUS_STALLS" ]; then
-            echo "::set-output name=changed::true"
+            echo "changed=true" >> $GITHUB_ENV
           # Führe den Vergleich nur durch, wenn PREVIOUS_STALLS nicht leer ist
           elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
-            echo "::set-output name=changed::true"
+            echo "changed=true" >> $GITHUB_ENV
           fi
 
           # Speichere die aktualisierte freeplaces.txt als Artefakt
-          echo "::set-output name=free_stalls::$CURRENT_STALLS"
+          echo "free_stalls=$CURRENT_STALLS" >> $GITHUB_ENV
           mkdir -p ./artifacts
           cp freeplaces.txt ./artifacts/
 
@@ -53,20 +56,25 @@ jobs:
           name: stallplaetze-artifact
           path: ./artifacts/
 
-      - name: Discord Notification
-        if: steps.check_stalls.outputs.changed == 'true'
-        needs: check_stalls # Benötigt den vorherigen Schritt
+  notify:
+    runs-on: ubuntu-latest
+    needs: check_stalls
+    if: env.changed == 'true'
+    steps:
+      - name: Download artifact
         uses: actions/download-artifact@v3
         with:
           name: stallplaetze-artifact
           path: ./artifacts/
+
+      - name: Discord Notification
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           # Stelle die freeplaces.txt aus dem Artefakt wieder her
-          cp./artifacts/freeplaces.txt.
+          cp ./artifacts/freeplaces.txt .
 
           # Lese den aktuellen Wert aus der wiederhergestellten Datei
           CURRENT_STALLS=$(cat freeplaces.txt)
 
-          curl -H "Content-Type: application/json" -X POST -d '{"content": "Die Anzahl der freien Stallplätze hat sich geändert! Aktuell sind '$CURRENT_STALLS' Plätze frei."}' "${{ secrets.DISCORD_WEBHOOK_URL }}"
+          curl -H "Content-Type: application/json" -X POST -d '{"content": "Die Anzahl der freien Stallplätze hat sich geändert! Aktuell sind '"$CURRENT_STALLS"' Plätze frei."}' "${{ secrets.DISCORD_WEBHOOK_URL }}"
