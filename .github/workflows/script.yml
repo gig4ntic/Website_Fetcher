@@ -23,7 +23,7 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          python fetch.py
+          python -m fetch  # Korrigierter Befehl
 
           # Vergleichen mit vorherigem Wert aus freeplaces.txt
           if [ -f freeplaces.txt ]; then
