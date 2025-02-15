@@ -30,13 +30,13 @@ jobs:
           if [ -f "${{ github.workspace }}/freeplaces.txt" ]; then
             PREVIOUS_STALLS=$(cat "${{ github.workspace }}/freeplaces.txt")
           else
-            PREVIOUS_STALLS=""
+            PREVIOUS_STALLS="?"
           fi
 
           CURRENT_STALLS=$(cat "${{ github.workspace }}/freeplaces.txt")
 
           # Prüfe, ob sich etwas geändert hat
-          if [ -z "$PREVIOUS_STALLS" ]; then
+          if [ "$PREVIOUS_STALLS" = "?" ]; then
             echo "changed=true" >> "$GITHUB_ENV"
             echo "::set-output name=changed::true"
           elif [ "$CURRENT_STALLS" != "$PREVIOUS_STALLS" ]; then
@@ -47,12 +47,14 @@ jobs:
             echo "::set-output name=changed::false"
           fi
 
-          # Speichere die Anzahl der freien Stallplätze
+          # Speichere alte und neue Anzahl der freien Plätze als Output
+          echo "::set-output name=previous_stalls::$PREVIOUS_STALLS"
           echo "::set-output name=free_stalls::$CURRENT_STALLS"
 
           # Speichere die Datei als Artefakt
           mkdir -p ./artifacts
-          cp freeplaces.txt ./artifacts/
+          echo "$PREVIOUS_STALLS" > ./artifacts/previousplaces.txt
+          echo "$CURRENT_STALLS" > ./artifacts/freeplaces.txt
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -74,17 +76,19 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          # Stelle die freeplaces.txt aus dem Artefakt wieder her
+          # Stelle die freeplaces.txt und previousplaces.txt aus dem Artefakt wieder her
           cp ./artifacts/freeplaces.txt .
+          cp ./artifacts/previousplaces.txt .
 
-          # Lese den aktuellen Wert aus der Datei
+          # Lese alte und neue Anzahl aus den Dateien
+          PREVIOUS_STALLS=$(cat previousplaces.txt)
           CURRENT_STALLS=$(cat freeplaces.txt)
 
           # Prüfe, ob sich etwas geändert hat
           if [ "${{ needs.check_stalls.outputs.changed }}" == "true" ]; then
-            MESSAGE="@gig4ntic Die Anzahl der freien Stallplätze hat sich geändert! 🚨 Aktuell sind **$CURRENT_STALLS** Plätze frei."
+            MESSAGE="@gig4ntic 🚨 Die Anzahl der freien Stallplätze hat sich geändert! 🚨\nVorher: **$PREVIOUS_STALLS**\nJetzt: **$CURRENT_STALLS**"
           else
-            MESSAGE="ℹ️ Die Anzahl der freien Stallplätze hat sich **nicht** geändert. Aktuell sind weiterhin **$CURRENT_STALLS** Plätze frei."
+            MESSAGE="ℹ️ Keine Änderung der freien Stallplätze.\nAktuell sind weiterhin **$CURRENT_STALLS** Plätze frei."
           fi
 
           # Sende die Nachricht an Discord
