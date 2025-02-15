@@ -2,9 +2,17 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
+# Define the URL and headers
+url = "https://www.stall-frei.de/stall/baden-wuerttemberg/schwaigern/143025"
 headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+    "User-Agent": "Mozilla/5.0"
 }
+
+# Make the request
+response = requests.get(url, headers=headers)
+
+# Handle the response
+print(response.text)
 
 response = requests.get(url, headers=headers)
 
